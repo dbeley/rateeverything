@@ -1,5 +1,11 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
 
+let authToken: string | null = null
+
+export function setToken(token: string | null) {
+  authToken = token
+}
+
 export interface EntityType {
   id: number
   name: string
@@ -114,8 +120,12 @@ export interface DashboardStats {
 }
 
 async function fetcher<T>(url: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`
+  }
   const res = await fetch(`${API_BASE}${url}`, {
-    headers: { "Content-Type": "application/json", ...options?.headers },
+    headers: { ...headers, ...options?.headers as Record<string, string> },
     ...options,
   })
   if (!res.ok) {
@@ -178,4 +188,16 @@ export const api = {
     fetcher("/llm/analyze-entity", { method: "POST", body: JSON.stringify(data) }),
   suggestType: (name: string, description?: string) =>
     fetcher(`/llm/suggest-type?name=${encodeURIComponent(name)}${description ? `&description=${encodeURIComponent(description)}` : ""}`, { method: "POST" }),
+
+  // Auth
+  login: (username: string, password: string) =>
+    fetcher<{ access_token: string; token_type: string; user: { id: number; username: string; display_name: string | null; email: string | null; avatar_url: string | null; bio: string | null; is_admin: boolean } }>(
+      "/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }
+    ),
+  register: (username: string, password: string, display_name?: string) =>
+    fetcher<{ access_token: string; token_type: string; user: { id: number; username: string; display_name: string | null; email: string | null; avatar_url: string | null; bio: string | null; is_admin: boolean } }>(
+      "/auth/register", { method: "POST", body: JSON.stringify({ username, password, display_name }) }
+    ),
+  getMe: () =>
+    fetcher<{ id: number; username: string; display_name: string | null; email: string | null; avatar_url: string | null; bio: string | null; is_admin: boolean }>("/auth/me"),
 }

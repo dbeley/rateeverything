@@ -3,9 +3,10 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Compass, Home, Shuffle, Plus, Search } from "lucide-react"
+import { Compass, Home, Shuffle, Plus, Search, LogIn, User } from "lucide-react"
 import { useState } from "react"
 import { api } from "@/lib/api"
+import { useAuth } from "@/lib/auth"
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
@@ -16,6 +17,7 @@ const navItems = [
 
 export default function Navbar() {
   const pathname = usePathname()
+  const { user, logout } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<Array<{ id: number; name: string }>>([])
   const [showSearch, setShowSearch] = useState(false)
@@ -63,7 +65,8 @@ export default function Navbar() {
 
         <div className="flex-1" />
 
-        <div className="relative">
+        {/* Search */}
+        <div className="relative mr-2">
           <button
             onClick={() => setShowSearch(!showSearch)}
             className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900"
@@ -97,6 +100,27 @@ export default function Navbar() {
             </div>
           )}
         </div>
+
+        {/* Auth */}
+        {user ? (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-zinc-400">{user.display_name || user.username}</span>
+            <button
+              onClick={logout}
+              className="text-xs text-zinc-600 hover:text-zinc-400"
+            >
+              Déconnexion
+            </button>
+          </div>
+        ) : (
+          <Link
+            href="/login"
+            className="flex items-center gap-1.5 px-3 py-2 text-sm text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900 transition-colors"
+          >
+            <LogIn className="w-4 h-4" />
+            Connexion
+          </Link>
+        )}
       </div>
     </header>
   )
