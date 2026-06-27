@@ -41,7 +41,12 @@ async def client(db_session):
     """Create test client with overridden DB dependency"""
 
     async def override_get_db():
-        yield db_session
+        try:
+            yield db_session
+            await db_session.commit()
+        except Exception:
+            await db_session.rollback()
+            raise
 
     app.dependency_overrides[get_db] = override_get_db
     transport = ASGITransport(app=app)
@@ -256,6 +261,7 @@ async def test_random_entity(client):
 
 @pytest.mark.asyncio
 async def test_entity_graph(client):
+    """Entity graph for visualization works"""
     type_resp = await client.post("/api/types", json={"name": "Objet", "emoji": "📦"})
     type_id = type_resp.json()["id"]
 
@@ -278,3 +284,67 @@ async def test_entity_graph(client):
     assert "nodes" in data
     assert "edges" in data
     assert len(data["nodes"]) >= 2
+
+
+# ─── Auth Tests ──────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_register_user(client):
+    """Can register a new user"""
+    response = await client.post(
+        "/api/auth/register",
+        json={"username": "testuser", "password": "testpass123", "display_name": "Test User"},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert "access_token" in data
+    assert data["user"]["username"] == "testuser"
+    assert data["user"]["display_name"] == "Test User"
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate(client):
+    """Cannot register duplicate username"""
+    await client.post("/api/auth/register", json={"username": "dupuser", "password": "testpass123"})
+    response = await client.post("/api/auth/register", json={"username": "dupuser", "password": "otherpass"})
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_login(client):
+    """Can login with valid credentials"""
+    await client.post("/api/auth/register", json={"username": "loginuser", "password": "secret123"})
+    response = await client.post("/api/auth/login", json={"username": "loginuser", "password": "secret123"})
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["user"]["username"] == "loginuser"
+
+
+@pytest.mark.asyncio
+async def test_login_wrong_password(client):
+    """Cannot login with wrong password"""
+    await client.post("/api/auth/register", json={"username": "secureuser", "password": "correctpw"})
+    response = await client.post("/api/auth/login", json={"username": "secureuser", "password": "wrongpw"})
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_me_with_token(client):
+    """Can get current user with valid token"""
+    register_resp = await client.post(
+        "/api/auth/register",
+        json={"username": "meuser", "password": "mypassword"},
+    )
+    token = register_resp.json()["access_token"]
+
+    response = await client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    assert response.json()["username"] == "meuser"
+
+
+@pytest.mark.asyncio
+async def test_me_without_token(client):
+    """Cannot get current user without token"""
+    response = await client.get("/api/auth/me")
+    assert response.status_code == 401

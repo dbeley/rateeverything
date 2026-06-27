@@ -14,6 +14,7 @@ from app.routes_ratings import router as ratings_router
 from app.routes_relations import router as relations_router
 from app.routes_llm import router as llm_router
 from app.routes_charts import router as charts_router
+from app.routes_auth import router as auth_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -57,6 +58,7 @@ app.include_router(ratings_router)
 app.include_router(relations_router)
 app.include_router(llm_router)
 app.include_router(charts_router)
+app.include_router(auth_router)
 
 
 @app.get("/api/health")

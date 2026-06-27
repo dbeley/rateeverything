@@ -177,13 +177,18 @@ class EntityTag(Base):
     )
 
 
-class UserProfile(Base):
-    """Minimal user data"""
-    __tablename__ = "user_profiles"
+class User(Base):
+    """User with authentication"""
+    __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String(100), unique=True, nullable=False)
+    username = Column(String(100), unique=True, nullable=False, index=True)
+    email = Column(String(255), unique=True, nullable=True)
     display_name = Column(String(200), nullable=True)
+    password_hash = Column(String(255), nullable=False)
     avatar_url = Column(String(500), nullable=True)
     bio = Column(Text, nullable=True)
+    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
