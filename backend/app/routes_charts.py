@@ -1,7 +1,7 @@
 """Charts data generation endpoints"""
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text as sa_text, Date
 from typing import Optional
 
 from app.database import get_db
@@ -51,16 +51,16 @@ async def get_entity_charts(
     # Rating over time (last 30 days)
     time_result = await db.execute(
         select(
-            func.date(Rating.created_at).label("day"),
+            func.date_trunc(sa_text("'day'"), Rating.created_at).label("day"),
             func.avg(Rating.score).label("avg_score"),
             func.count(Rating.id).label("count"),
         )
         .where(
             Rating.entity_id == entity_id,
-            Rating.created_at >= func.datetime("now", "-30 days"),
+            Rating.created_at >= sa_text("NOW() - INTERVAL '30 days'"),
         )
-        .group_by(func.date(Rating.created_at))
-        .order_by(func.date(Rating.created_at))
+        .group_by(func.date_trunc(sa_text("'day'"), Rating.created_at))
+        .order_by(func.date_trunc(sa_text("'day'"), Rating.created_at))
     )
     time_rows = time_result.all()
     time_labels = [str(row.day)[:10] for row in time_rows] if time_rows else []
@@ -148,12 +148,12 @@ async def get_type_charts(
     # Timeline (entities created over time)
     timeline_result = await db.execute(
         select(
-            func.date(Entity.created_at).label("week"),
+            func.date_trunc(sa_text("'week'"), Entity.created_at).label("week"),
             func.count(Entity.id).label("count"),
         )
         .where(Entity.entity_type_id == type_id)
-        .group_by(func.date(Entity.created_at))
-        .order_by(func.date(Entity.created_at))
+        .group_by(func.date_trunc(sa_text("'week'"), Entity.created_at))
+        .order_by(func.date_trunc(sa_text("'week'"), Entity.created_at))
         .limit(52)
     )
     timeline_rows = timeline_result.all()

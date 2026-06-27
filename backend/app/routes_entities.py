@@ -1,7 +1,7 @@
 """Entities API routes"""
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_, text as sa_text
 from sqlalchemy.orm import selectinload
 from typing import Optional
 
@@ -113,7 +113,7 @@ async def trending_entities(
 ):
     """Get trending entities (most rated recently)"""
     # Entities with most ratings in last 7 days
-    seven_days_ago = func.datetime("now", "-7 days")
+    seven_days_ago = sa_text("NOW() - INTERVAL '7 days'")
 
     recent_ratings = (
         select(Rating.entity_id, func.count(Rating.id).label("recent_count"))
